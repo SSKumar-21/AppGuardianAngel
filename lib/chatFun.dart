@@ -2,122 +2,158 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-// ---------------- API FUNCTION ----------------
-Future<String> getBotReply(String message) async {
+class ChatService {
 
-  const String apiKey =
-      "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";
+  // ---------------- API ----------------
+  static Future<String> getBotReply(
+      String userMessage,
+      List<Map<String, String>> oldMessages,
+      ) async {
 
-  try {
+    const String apiKey =
+        "YOUR_API_KEY";
 
-    final response = await http.post(
+    try {
 
-      Uri.parse(
-        "https://api.groq.com/openai/v1/chat/completions",
-      ),
+      List<Map<String, String>> apiMessages = [
 
-      headers: {
+        {
+          "role": "system",
 
-        "Content-Type": "application/json",
+          "content": """
+You are a Safety & Emergency Assistance Chatbot.
 
-        "Authorization":
-        "Bearer $apiKey",
-      },
+Your role is to provide clear, short, step-by-step actions in emergencies while also reassuring the user emotionally. Always assume the user may be in immediate danger.
 
-      body: jsonEncode({
+🔹 Knowledge Domains
 
-        // MODEL
-        "model": "llama-3.3-70b-versatile",
+Emergency Guidance:
+Govt protocols, survival guides, fire, accidents, harassment safety.
 
-        // CHAT HISTORY
-        "messages": [
+Self-Defence Awareness:
+NGO awareness, safety methods, escape techniques.
 
-          {
-            "role": "system",
+Support Services:
+Police, ambulance, women helplines, legal aid.
 
-            "content":
-            "You are Guardian Angel AI, "
-                "a helpful personal safety assistant. "
-                "Help users calmly and clearly. "
-                "Focus on safety, emergency guidance, "
-                "mental support, and useful information.",
-          },
+Medical & First Aid:
+WHO and government first aid guidance.
 
-          {
-            "role": "user",
-            "content": message,
-          }
-        ],
+Legal Information:
+Women rights, harassment laws, victim protection acts.
 
-        // AI SETTINGS
-        "temperature": 0.7,
-        "max_tokens": 1024,
-      }),
-    );
+If outside these domains reply:
+"I’m designed to help with safety, emergency, legal, and awareness-related queries."
 
-    // SUCCESS
-    if (response.statusCode == 200) {
+🔹 Rules
 
-      final data = jsonDecode(response.body);
+• Give immediate actions first
+• Keep answers short
+• Use steps
+• Be calm and supportive
+• Prioritize safety
+• End with emotional reassurance
+"""
+        }
+      ];
 
-      return data['choices'][0]['message']['content']
-          ?? "No response";
+      // ADD OLD CHAT HISTORY
+      apiMessages.addAll(oldMessages);
+
+      // ADD NEW USER MESSAGE
+      apiMessages.add({
+        "role": "user",
+        "content": userMessage,
+      });
+
+      final response = await http.post(
+
+        Uri.parse(
+          "https://api.groq.com/openai/v1/chat/completions",
+        ),
+
+        headers: {
+
+          "Content-Type": "application/json",
+
+          "Authorization":
+          "Bearer $apiKey",
+        },
+
+        body: jsonEncode({
+
+          "model": "llama-3.3-70b-versatile",
+
+          "messages": apiMessages,
+
+          "temperature": 0.7,
+
+          "max_tokens": 1024,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+
+        final data = jsonDecode(response.body);
+
+        return data['choices'][0]['message']['content']
+            ?? "No response";
+      }
+
+      return
+        "Server Error: ${response.statusCode}\n"
+            "${response.body}";
+
+    } catch (e) {
+
+      return "Error: $e";
     }
-
-    // ERROR RESPONSE
-    return
-      "Server Error: ${response.statusCode}\n"
-          "${response.body}";
-
-  } catch (e) {
-
-    return "Error: $e";
   }
-}
 
-// ---------------- SAVE CHATS ----------------
-Future<void> saveChats(
-    List<Map<String, String>> messages,
-    ) async {
+  // ---------------- SAVE CHAT ----------------
+  static Future<void> saveChats(
+      List<Map<String, String>> messages,
+      ) async {
 
-  final prefs =
-  await SharedPreferences.getInstance();
+    final prefs =
+    await SharedPreferences.getInstance();
 
-  List<String> encoded = messages.map((msg) {
+    List<String> encoded = messages.map((msg) {
 
-    return jsonEncode(msg);
+      return jsonEncode(msg);
 
-  }).toList();
+    }).toList();
 
-  await prefs.setStringList(
-    "chat_history",
-    encoded,
-  );
-}
-
-// ---------------- LOAD CHATS ----------------
-Future<List<Map<String, String>>> loadSavedChats() async {
-
-  final prefs =
-  await SharedPreferences.getInstance();
-
-  List<String> savedChats =
-      prefs.getStringList("chat_history") ?? [];
-
-  return savedChats.map((chat) {
-
-    return Map<String, String>.from(
-      jsonDecode(chat),
+    await prefs.setStringList(
+      "chat_history",
+      encoded,
     );
+  }
 
-  }).toList();
-}
+  // ---------------- LOAD CHAT ----------------
+  static Future<List<Map<String, String>>> loadSavedChats() async {
 
-// ---------------- CLEAR CHAT ----------------
-Future<void> clearChats() async {
+    final prefs =
+    await SharedPreferences.getInstance();
 
-  final prefs =
-  await SharedPreferences.getInstance();
+    List<String> savedChats =
+        prefs.getStringList("chat_history") ?? [];
 
-  await prefs.remove("chat_history");
+    return savedChats.map((chat) {
+
+      return Map<String, String>.from(
+        jsonDecode(chat),
+      );
+
+    }).toList();
+  }
+
+  // ---------------- CLEAR CHAT ----------------
+  static Future<void> clearChats() async {
+
+    final prefs =
+    await SharedPreferences.getInstance();
+
+    await prefs.remove("chat_history");
+  }
 }

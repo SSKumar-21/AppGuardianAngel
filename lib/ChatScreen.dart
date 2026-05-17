@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'chatFun.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -23,14 +24,43 @@ class _ChatScreenState extends State<ChatScreen>
 
   bool isLoading = false;
   bool showIntro = true;
+  bool darkMode = false;
+
+  Map<String, dynamic> userData = {};
 
   late AnimationController animationController;
   late Animation<double> scaleAnimation;
   late Animation<double> fadeAnimation;
 
+  // ---------------- LOAD USER DATA ----------------
+  Future<void> loadUserData() async {
+
+    final prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+
+      userData = {
+        "id": prefs.getString("id") ?? "",
+        "username": prefs.getString("username") ?? "",
+        "email": prefs.getString("email") ?? "",
+        "password": prefs.getString("password") ?? "",
+        "address": prefs.getString("address") ?? "",
+        "phone": prefs.getString("phone") ?? "",
+        "contact_names": prefs.getString("contact_names") ?? "",
+        "contact_phones": prefs.getString("contact_phones") ?? "",
+        "contact_relations": prefs.getString("contact_relations") ?? "",
+        "isDark": prefs.getBool("isDark") ?? false,
+      };
+
+      darkMode = prefs.getBool("isDark") ?? false;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+
+    loadUserData();
 
     animationController = AnimationController(
       vsync: this,
@@ -93,23 +123,27 @@ class _ChatScreenState extends State<ChatScreen>
 
     controller.clear();
 
-    await saveChats(messages);
+    await ChatService.saveChats(messages);
 
     scrollToBottom();
 
-    String botReply = await getBotReply(text);
+    String botReply =
+    await ChatService.getBotReply(
+      text,
+      messages,
+    );
 
     setState(() {
 
       messages.add({
-        "role": "bot",
+        "role": "assistant",
         "text": botReply,
       });
 
       isLoading = false;
     });
 
-    await saveChats(messages);
+    await ChatService.saveChats(messages);
 
     scrollToBottom();
   }
@@ -117,7 +151,8 @@ class _ChatScreenState extends State<ChatScreen>
   // ---------------- LOAD CHATS ----------------
   Future<void> loadChats() async {
 
-    messages = await loadSavedChats();
+    messages =
+    await ChatService.loadSavedChats();
 
     setState(() {});
   }
@@ -180,7 +215,12 @@ class _ChatScreenState extends State<ChatScreen>
           )
 
               : LinearGradient(
-            colors: [
+            colors: darkMode
+                ? [
+              const Color(0xFF2A2A2A),
+              const Color(0xFF1E1E1E),
+            ]
+                : [
               Colors.grey.shade200,
               Colors.grey.shade100,
             ],
@@ -214,6 +254,8 @@ class _ChatScreenState extends State<ChatScreen>
             color:
             isUser
                 ? Colors.white
+                : darkMode
+                ? Colors.white
                 : Colors.black87,
 
             fontSize: 14,
@@ -229,11 +271,17 @@ class _ChatScreenState extends State<ChatScreen>
 
     return Scaffold(
 
-      backgroundColor: Colors.white,
+      backgroundColor:
+      darkMode
+          ? const Color(0xFF121212)
+          : Colors.white,
 
       appBar: AppBar(
 
-        backgroundColor: const Color(0xFFA9271B),
+        backgroundColor:
+        darkMode
+            ? Colors.black
+            : const Color(0xFFA9271B),
 
         elevation: 0,
 
@@ -259,11 +307,30 @@ class _ChatScreenState extends State<ChatScreen>
             ),
           ],
         ),
+
+        actions: [
+
+          IconButton(
+
+            onPressed: () async {
+
+              await ChatService.clearChats();
+
+              setState(() {
+                messages.clear();
+              });
+            },
+
+            icon: const Icon(
+              Icons.delete_outline,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
 
       body: showIntro
 
-      // ---------------- INTRO ANIMATION ----------------
           ? Center(
 
         child: FadeTransition(
@@ -328,7 +395,10 @@ class _ChatScreenState extends State<ChatScreen>
 
                   style: GoogleFonts.poppins(
                     fontSize: 14,
-                    color: Colors.black54,
+                    color:
+                    darkMode
+                        ? Colors.white70
+                        : Colors.black54,
                   ),
                 ),
               ],
@@ -337,7 +407,6 @@ class _ChatScreenState extends State<ChatScreen>
         ),
       )
 
-      // ---------------- CHAT UI ----------------
           : Column(
 
         children: [
@@ -353,7 +422,10 @@ class _ChatScreenState extends State<ChatScreen>
 
                 style: GoogleFonts.poppins(
                   fontSize: 15,
-                  color: Colors.black45,
+                  color:
+                  darkMode
+                      ? Colors.white54
+                      : Colors.black45,
                 ),
               ),
             )
@@ -390,7 +462,11 @@ class _ChatScreenState extends State<ChatScreen>
                 "Guardian Angel AI is typing...",
 
                 style: GoogleFonts.poppins(
-                  color: Colors.black54,
+                  color:
+                  darkMode
+                      ? Colors.white54
+                      : Colors.black54,
+
                   fontSize: 13,
                 ),
               ),
@@ -406,7 +482,10 @@ class _ChatScreenState extends State<ChatScreen>
 
             decoration: BoxDecoration(
 
-              color: Colors.white,
+              color:
+              darkMode
+                  ? const Color(0xFF1E1E1E)
+                  : Colors.white,
 
               boxShadow: [
                 BoxShadow(
@@ -431,18 +510,32 @@ class _ChatScreenState extends State<ChatScreen>
                     minLines: 1,
                     maxLines: 5,
 
+                    style: GoogleFonts.poppins(
+                      color:
+                      darkMode
+                          ? Colors.white
+                          : Colors.black,
+                    ),
+
                     decoration: InputDecoration(
 
                       hintText:
-                      "Type your message...",
+                      "Describe your situation...",
 
                       hintStyle:
-                      GoogleFonts.poppins(),
+                      GoogleFonts.poppins(
+                        color:
+                        darkMode
+                            ? Colors.white54
+                            : Colors.black54,
+                      ),
 
                       filled: true,
 
                       fillColor:
-                      Colors.grey.shade100,
+                      darkMode
+                          ? const Color(0xFF2A2A2A)
+                          : Colors.grey.shade100,
 
                       contentPadding:
                       const EdgeInsets.symmetric(
