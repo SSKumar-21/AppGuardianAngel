@@ -41,7 +41,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  @overridet
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
