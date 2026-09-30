@@ -298,7 +298,7 @@ class _ChatScreenState extends State<ChatScreen>
             const SizedBox(width: 12),
 
             Text(
-              "Guardian Angel AI",
+              "Safe Steps",
 
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w600,
